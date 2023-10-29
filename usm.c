@@ -3,6 +3,8 @@
 #include <stdio.h>
 #include <string.h>
 #include <stdint.h>
+#include <stdlib.h>
+#include <ctype.h>
 
 char cart[1024 * 128];
 char prg_temp_buf[1024 * 128];
@@ -57,6 +59,27 @@ typedef struct
 #define BYTESWAP_WORD(x) x
 #endif
 
+unsigned long parse_bss_parameter(char *p)
+{
+    if (!p)
+    {
+        printf("Error: -b expects address in hex, for example -b68000\n");
+        exit(-1);
+    }
+    return strtol(p, NULL, 16);
+}
+
+unsigned long parse_init_parameter(char *p)
+{
+    if (!p || (*p != '0' && *p != '1' && *p != '3' && *p != '5' && *p != '6' && *p != '7'))
+    {
+        printf("Error: -f expects a value from 0, 1, 3, 5, 6, 7\n");
+        exit(-1);
+    }
+
+    return 1 << (24 + (*p - '0'));
+}
+
 int main(int argc, char **argv)
 {
     int diagnostic = 0;
@@ -67,58 +90,93 @@ int main(int argc, char **argv)
 
     if (argc < 3)
     {
-        printf("Usage: %s [s] image_filename <list_of_programs_to_add>\n"
-            "pass s to create a steem engine compatible cart image file\n"
-            "For now, use upper case filenames\n", argv[0]);
+        printf("Usage: %s [-s] [-bX] [-fY] image_filename <list of programs to add with optional -b and -f>\n"
+            "pass -s to create a steem engine compatible cart image file\n"
+            "pass -d to create a diagnostic cart image file\n"
+            "pass -bAABBCC to set BSS to $AABBCC (default: $20000)\n"
+            "pass -fX to set the INIT flag. X can be:\n"
+            "0       Execute prior to display memory and interrupt vector initialization.\n"
+            "1       Execute just before GEMDOS is initialized.\n"
+            "3       Execute prior to boot disk.\n"
+            "5       Application is a Desk Accessory.\n"
+            "6       Application is not a GEM application.\n"
+            "7       Application needs parameters.\n"
+            "-b and -f can be passed at the beginning of argument list where they will\n"
+            "have global effect, or after each filename where they'll only apply to the current file.\n"
+            "Default value for -b is $20000 and for -f is nothing.\n", argv[0]);
         return -1;
     }
 
-    // Eat the program filename argument
     argv++;
     argc--;
 
-    if (*argv[0] == 's')
+    unsigned long gloal_bss_hardcoded_address = 0x20000;
+    unsigned long global_init_flag = 0;
+    const unsigned long diagnostic_magic = 0xfa52235f;
+    const unsigned long cart_magic = 0xABCDEF42;
+    while (argc && **argv == '-')
     {
-        steem_cart = 1;
+        if ((*argv)[1] == 's')
+        {
+            steem_cart = 1;
+        }
+        else if ((*argv)[1] == 'd')
+        {
+            // Diagnostic cartridges are executed almost immediately after a system reset.
+            // The OS uses a 680x0 JMP instruction to begin execution at address 0xFA0004
+            // after having set the Interrupt Priority Level (IPL) to 7, entering supervisor mode, 
+            // and executing a RESET instruction to reset external hardware devices.
+            diagnostic = 1;
+        }
+        else if ((*argv)[1] == 'b')
+        {
+            gloal_bss_hardcoded_address = parse_bss_parameter(&argv[0][2]);
+        }
+        else if ((*argv)[1] == 'f')
+        {
+            global_init_flag = parse_init_parameter(&argv[0][2]);
+        }
+        else
+        {
+            printf("Invalid flag passed '%s' - exiting\n", *argv);
+            return -1;
+        }
         argv++;
         argc--;
     }
-    else if (*argv[0] == 'd')
-    {
-        // Diagnostic cartridges are executed almost immediately after a system reset.
-        // The OS uses a 680x0 JMP instruction to begin execution at address 0xFA0004
-        // after having set the Interrupt Priority Level (IPL) to 7, entering supervisor mode, 
-        // and executing a RESET instruction to reset external hardware devices.
-        unsigned long diagnostic_magic = 0xFA52255F;
-        printf("Diagnostic cart not yet supported - exiting\n");
-        return -1;
-    }
 
-
-    if (diagnostic)
-    {
-        // ...
-    }
+    char *output_filename = *argv;
+    argv++;
+    argc--;
 
     unsigned char *fill = cart;
     for (i = 0; i < 128 * 1024 / 4; i++)
     {
-        *fill++ = 'G';
-        *fill++ = 'G';
-        *fill++ = 'N';
+        *fill++ = 'U';
+        *fill++ = 'S';
+        *fill++ = 'M';
         *fill++ = '!';
     }
-    
-    *(unsigned long *)&cart_start[cart_current_offset] = BYTESWAP_LONG(0xABCDEF42);
-    cart_current_offset += 4;
-    unsigned long bss_hardcoded_address = 0x20000; // TODO UI
 
-    for (i = 1; i < argc; i++)
+    *(unsigned long *)&cart_start[cart_current_offset] = BYTESWAP_LONG(cart_magic);
+    if (diagnostic)
     {
-        FILE *f = fopen(argv[i], "rb");
+        *(unsigned long *)&cart_start[cart_current_offset] = BYTESWAP_LONG(diagnostic_magic);
+    }
+    cart_current_offset += 4;
+
+    unsigned long *last_ca_next = 0; // It had better be initialised when we exit the loop below
+    int number_of_programs_processed = 0;
+
+    while (argc)
+    {
+        unsigned long bss_current_file = 0;
+        unsigned long init_current_file = global_init_flag;
+
+        FILE *f = fopen(*argv, "rb");
         if (!f)
         {
-            printf("File %s not found - exiting\n",argv[i]);
+            printf("File %s not found - exiting\n", *argv);
             return -1;
         }
 
@@ -129,15 +187,19 @@ int main(int argc, char **argv)
         if (file_size > 128 * 1024)
         {
             // Without any further checks, this will not fit. RIP
-            fclose(f);            
-            printf("File %s will not fit in image - exiting\n", argv[i]);
+            fclose(f);
+            printf("File %s will not fit in image - exiting\n", *argv);
             return -1;
         }
 
-        fread(prg_temp_buf, file_size, 1, f);   // TODO check errors etc
+        size_t ret = fread(prg_temp_buf, file_size, 1, f);   // TODO check errors etc
         fclose(f);
+        if (!ret)
+        {
+            printf("Failed to read file %s - exiting", *argv);
+        }
 
-        long header_size = sizeof(PRG_HEADER);
+        unsigned long prg_header_size = sizeof(PRG_HEADER);
         unsigned long program_size;
         PRG_HEADER *ph = (PRG_HEADER *)prg_temp_buf;
         // TODO: sanity checks for values here
@@ -148,39 +210,102 @@ int main(int argc, char **argv)
 
         program_size = (BYTESWAP_LONG(ph->PRG_tsize) + BYTESWAP_LONG(ph->PRG_dsize) + 1) & 0xfffffffe; // align to 2 bytes
 
-        if (program_size > 128 * 1024 - cart_current_offset - sizeof(CA_HEADER))
+        unsigned long entry_header_size = 0;
+        if (!diagnostic)
+        {
+            entry_header_size = sizeof(CA_HEADER);
+        }
+        if (program_size > 128 * 1024 - cart_current_offset - entry_header_size)
         {
             fclose(f);
-            printf("File %s will not fit in image - exiting\n", argv[i]);
+            printf("File %s will not fit in image - exiting\n", *argv);
             return -1;
+        }
+        char *s_filename = *argv;
+
+        argv++;
+        argc--;
+
+        while (argc && **argv == '-')
+        {
+            if ((*argv)[1] == 'b')
+            {
+                // Current program has a companion '-b', so we'll override the default BSS address
+                bss_current_file = parse_bss_parameter(&argv[0][2]);
+                argv++;
+                argc--;
+            }
+            else if ((*argv)[1] == 'f')
+            {
+                init_current_file = parse_init_parameter(&argv[0][2]);
+                argv++;
+                argc--;
+            }
+            else
+            {
+                printf("Invalid flag passed '%s' - exiting\n", *argv);
+                return -1;
+            }
         }
 
         // Write header
-        unsigned long init_flags = 0 << 24; // TODO UI
-        CA_HEADER *h = (CA_HEADER *)&cart_start[cart_current_offset];
-        h->CA_NEXT = 0;
-        if (i < argc - 1)
+        if (!diagnostic)
         {
+            CA_HEADER *h = (CA_HEADER *)&cart_start[cart_current_offset];
+            last_ca_next = &h->CA_NEXT;
             h->CA_NEXT = BYTESWAP_LONG(0xfa0000 + cart_current_offset + sizeof(CA_HEADER) + program_size);
+            h->CA_INIT = BYTESWAP_LONG(0xfa0000 + cart_current_offset + sizeof(CA_HEADER) + init_current_file);
+            h->CA_RUN = BYTESWAP_LONG(0xfa0000 + cart_current_offset + sizeof(CA_HEADER));
+            h->CA_TIME = 0; //TODO figure out from file info (if we really care)
+            h->CA_DATE = 0; //TODO figure out from file info (if we really care)
+            h->CA_SIZE = BYTESWAP_LONG(program_size);
+            memset(h->CA_FILENAME, 0, 14);
+            char *d_filename = h->CA_FILENAME;
+            for (i = 0; i < 8; i++)
+            {
+                // Copy up to 8 characters, with uppercase
+                char c = toupper(*s_filename);
+                if (!c || c == '.')
+                {
+                    break;
+                }
+                *d_filename++ = c;
+                s_filename++;
+            }
+            while (*s_filename != '.' && *s_filename)
+            {
+                // Truncate the rest of the characters of the filename
+                s_filename++;
+            }
+            for (i = 0; i < 4; i++)
+            {
+                // Copy dot character, plus up to 3 characters extension, with uppercase
+                char c = toupper(*s_filename);
+                if (!c)
+                {
+                    break;
+                }
+                *d_filename++ = c;
+                s_filename++;
+            }
+            //strcpy(h->CA_FILENAME, *argv);    // TODO: Truncate to 8.3 if needed, convert to uppercase
+
+            cart_current_offset += sizeof(CA_HEADER);
         }
-        h->CA_INIT = BYTESWAP_LONG(0xfa0000 + cart_current_offset + sizeof(CA_HEADER) + init_flags);
-        h->CA_RUN = BYTESWAP_LONG(0xfa0000 + cart_current_offset + sizeof(CA_HEADER));
-        h->CA_TIME = 0; //TODO figure out from file info (if we really care)
-        h->CA_DATE = 0; //TODO figure out from file info (if we really care)
-        h->CA_SIZE = BYTESWAP_LONG(program_size);
-        memset(h->CA_FILENAME, 0, 14);
-        strcpy(h->CA_FILENAME, argv[i]);    // TODO: Truncate to 8.3 if needed, convert to uppercase
 
-        cart_current_offset += sizeof(CA_HEADER);
-
-        memcpy(&cart_start[cart_current_offset], prg_temp_buf + header_size, program_size);
+        memcpy(&cart_start[cart_current_offset], prg_temp_buf + prg_header_size, program_size);
 
         // Relocate program
+        if (!bss_current_file)
+        {
+            // use global default if bss address not specified for this program
+            bss_current_file = gloal_bss_hardcoded_address;
+        }
         if (!ph->ABSFLAG)
         {
             unsigned long program_start_address = 0xfa0000 + cart_current_offset;
             unsigned char *current_relocation = &cart_start[cart_current_offset];
-            unsigned char *reloc = &prg_temp_buf[header_size + BYTESWAP_LONG(ph->PRG_tsize) + BYTESWAP_LONG(ph->PRG_dsize) + BYTESWAP_LONG(ph->PRG_ssize)]; // TODO: Sanity check values
+            unsigned char *reloc = &prg_temp_buf[prg_header_size + BYTESWAP_LONG(ph->PRG_tsize) + BYTESWAP_LONG(ph->PRG_dsize) + BYTESWAP_LONG(ph->PRG_ssize)]; // TODO: Sanity check values
             unsigned long offset = BYTESWAP_LONG(*(uint32_t *)reloc);
             reloc += 4;
             for (;;)
@@ -201,7 +326,7 @@ int main(int argc, char **argv)
                     else
                     {
                         // It's BSS area, point it to the hardcoded BSS address
-                        *(uint32_t *)current_relocation = BYTESWAP_LONG(off - program_size + bss_hardcoded_address);
+                        *(uint32_t *)current_relocation = BYTESWAP_LONG(off - program_size + bss_current_file);
                     }
                 }
                 if (!*reloc) break;
@@ -210,13 +335,34 @@ int main(int argc, char **argv)
         }
 
         cart_current_offset += program_size;
+        number_of_programs_processed++;
 
+        if (diagnostic && argc)
+        {
+            // If we reached this point, the user told us to create a diagnostic cart
+            // that has more than one filename, and that's a no go. Complain and exit
+            printf("We were asked to create a diagnostic cart and were given\n"
+                   "more than one program. This is not supported - exiting\n");
+            return -1;
+        }
     }
 
-    FILE *f = fopen(argv[0], "wb");
+    if (!number_of_programs_processed)
+    {
+        printf("No programs supplied - exiting.\n");
+        return -1;
+    }
+
+    if (!diagnostic)
+    {
+        *last_ca_next = 0; // Last program in the chain needs to have CA_NEXT=0
+    }
+
+    // Write out the file
+    FILE *f = fopen(output_filename, "wb");
     if (!f)
     {
-        printf("Could not create image file %s  - exiting\n", argv[0]);
+        printf("Could not create image file %s  - exiting\n", output_filename);
         return -1;
     }
     if (steem_cart)
@@ -225,7 +371,7 @@ int main(int argc, char **argv)
         steem_cart = 0;
         fwrite(&steem_cart, 4, 1, f);
     }
-    fwrite(cart_start, 128*1024, 1, f);
+    fwrite(cart_start, 128 * 1024, 1, f);
     fclose(f);
 
     return 0;
