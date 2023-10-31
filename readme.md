@@ -27,6 +27,13 @@ where:
 
 More on defaults: The default value for *-b* is $20000, and the default value for *-f* is nothing. Passing *-b* and/or *-f* at the start of the parameter list will override the default values. Passing *-b* and/or *-f* after each program in the list, will override the defaults for that file only.
 
+How it works (briefly)
+----------------------
+
+Current (and only) mode of operation is that the program gets the PRG (or PRGs), relocates TEXT and DATA sections to ROM space and BSS to RAM at a hardcoded address, and hopes for the best.
+
+This is not the best (or robust) idea in the world, but at least it made sense when the program was conceptualised. See below for ideas for further development.
+
 Caveats (boy, here we go)
 -------------------------
 
@@ -40,3 +47,15 @@ Building
 --------
 
 Use the provided scripts. Or Visual Studio.
+
+What can be done in the future to improve things
+------------------------------------------------
+
+1. Add a small stub in front of each program to malloc enough BSS so if the running program is doing mallocs, it won't overwrite the BSS. Kind of tricky given the many modes of *-fY* and hardcoded BSS address
+1. Instead of relocating the program to ROM space, copy it along with relocation information to RAM and *pexec 3* it
+1. Keep the whole program in ROM space with relocation information, and at runtime a small stab will relocate it fully to RAM and run it. Again, it could malloc some RAM for this
+
+Thank yous
+----------
+
+Diego Parrilla for supplying the Github actions to automatically build binaries for all platforms, and some other fixes in the code.
