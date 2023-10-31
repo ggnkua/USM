@@ -1,0 +1,62 @@
+name: Build
+
+# Trigger on push events and pull requests to the repository
+on:
+  pull_request:
+
+jobs:
+  build-linux:
+    runs-on: ubuntu-latest
+    steps:  
+      - name: Checkout the code
+        uses: actions/checkout@v3
+  
+      - name: Give execute permissions to the script
+        run: chmod +x ./build_mac_linux.sh        
+
+      - name: Build Linux version
+        run: ./build_mac_linux.sh
+
+      - name: Create the dist/linux folder
+        run: mkdir -p ./dist
+
+      - name: Copy the Linux binary to the dist/linux folder
+        run: cp usm ./dist/usm.linux
+
+  build-macos:
+    runs-on: macos-latest
+    steps:
+      - name: Checkout the code
+        uses: actions/checkout@v3
+  
+      - name: Give execute permissions to the script
+        run: chmod +x ./build_mac_linux.sh        
+
+      - name: Build macOS version
+        run: ./build_mac_linux.sh
+
+      - name: Create the dist/macos folder
+        run: mkdir -p ./dist
+      
+      - name: Copy the macOS binary to the dist/macos folder
+        run: cp usm ./dist/usm.macos
+
+  build-windows:
+    runs-on: windows-latest
+    steps:
+      - name: Checkout the code
+        uses: actions/checkout@v3
+
+      - name: Set up MinGW
+        run: |
+          choco install mingw
+          echo "C:\ProgramData\chocolatey\lib\mingw\tools\install\mingw64\bin" >> $GITHUB_PATH
+
+      - name: Build Windows version using MinGW
+        run: .\build_mingw.bat
+
+      - name: Create the dist/windows folder
+        run: mkdir .\dist
+
+      - name: Copy the Windows binary to the dist/windows folder
+        run: copy usm.exe .\dist\usm.exe

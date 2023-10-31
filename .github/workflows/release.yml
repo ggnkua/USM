@@ -1,0 +1,114 @@
+name: Release
+
+on:
+  push:
+    tags:
+      - 'v*'
+
+jobs:
+  release-linux:
+    runs-on: ubuntu-latest
+    steps:  
+      - name: Checkout the code
+        uses: actions/checkout@v3
+  
+      - name: Give execute permissions to the script
+        run: chmod +x ./build_mac_linux.sh        
+
+      - name: Build Linux version
+        run: ./build_mac_linux.sh
+
+      - name: Create the dist/linux folder
+        run: mkdir -p ./dist
+
+      - name: Copy the Linux binary to the dist/linux folder
+        run: cp usm ./dist/usm.linux
+
+      - name: Upload Linux executable
+        uses: svenstaro/upload-release-action@v2
+        with:
+          repo_token: ${{ secrets.GITHUB_TOKEN }}
+          file: dist/usm.linux
+          asset_name: usm.linux
+          tag: ${{ github.ref }}
+          overwrite: true
+      - name: Upload Linux executable to latest
+        uses: svenstaro/upload-release-action@v2
+        with:
+          repo_token: ${{ secrets.GITHUB_TOKEN }}
+          file: dist/usm.linux
+          asset_name: usm.linux
+          tag: latest
+          overwrite: true
+
+  release-macos:
+    runs-on: macos-latest
+    steps:
+      - name: Checkout the code
+        uses: actions/checkout@v3
+  
+      - name: Give execute permissions to the script
+        run: chmod +x ./build_mac_linux.sh        
+
+      - name: Build macOS version
+        run: ./build_mac_linux.sh
+
+      - name: Create the dist/macos folder
+        run: mkdir -p ./dist
+      
+      - name: Copy the macOS binary to the dist/macos folder
+        run: cp usm ./dist/usm.macos
+
+      - name: Upload Mac OSX executable
+        uses: svenstaro/upload-release-action@v2
+        with:
+          repo_token: ${{ secrets.GITHUB_TOKEN }}
+          file: dist/usm.macos
+          asset_name: usm.macos
+          tag: ${{ github.ref }}
+          overwrite: true
+      - name: Upload Mac OSX executable to latest
+        uses: svenstaro/upload-release-action@v2
+        with:
+          repo_token: ${{ secrets.GITHUB_TOKEN }}
+          file: dist/usm.macos
+          asset_name: usm.macos
+          tag: latest
+          overwrite: true
+
+  release-windows:
+    runs-on: windows-latest
+    steps:
+      - name: Checkout the code
+        uses: actions/checkout@v3
+
+      - name: Set up MinGW
+        run: |
+          choco install mingw
+          echo "C:\ProgramData\chocolatey\lib\mingw\tools\install\mingw64\bin" >> $GITHUB_PATH
+
+      - name: Build Windows version using MinGW
+        run: .\build_mingw.bat
+
+      - name: Create the dist/windows folder
+        run: mkdir .\dist
+
+      - name: Copy the Windows binary to the dist/windows folder
+        run: copy usm.exe .\dist\usm.exe
+
+      - name: Upload Windows executable
+        uses: svenstaro/upload-release-action@v2
+        with:
+          repo_token: ${{ secrets.GITHUB_TOKEN }}
+          file: .\dist\usm.exe
+          asset_name: usm.exe
+          tag: ${{ github.ref }}
+          overwrite: true
+      - name: Upload Windows executable to latest
+        uses: svenstaro/upload-release-action@v2
+        with:
+          repo_token: ${{ secrets.GITHUB_TOKEN }}
+          file: .\dist\usm.exe
+          asset_name: usm.exe
+          tag: latest
+          overwrite: true
