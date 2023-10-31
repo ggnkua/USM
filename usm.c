@@ -59,7 +59,7 @@ typedef struct
 #define BYTESWAP_WORD(x) x
 #endif
 
-unsigned long parse_bss_parameter(char *p)
+uint32_t parse_bss_parameter(char *p)
 {
     if (!p)
     {
@@ -69,7 +69,7 @@ unsigned long parse_bss_parameter(char *p)
     return strtol(p, NULL, 16);
 }
 
-unsigned long parse_init_parameter(char *p)
+uint32_t parse_init_parameter(char *p)
 {
     if (!p || (*p != '0' && *p != '1' && *p != '3' && *p != '5' && *p != '6' && *p != '7'))
     {
@@ -110,10 +110,10 @@ int main(int argc, char **argv)
     argv++;
     argc--;
 
-    unsigned long gloal_bss_hardcoded_address = 0x20000;
-    unsigned long global_init_flag = 0;
-    const unsigned long diagnostic_magic = 0xfa52235f;
-    const unsigned long cart_magic = 0xABCDEF42;
+    uint32_t gloal_bss_hardcoded_address = 0x20000;
+    uint32_t global_init_flag = 0;
+    const uint32_t diagnostic_magic = 0xfa52235f;
+    const uint32_t cart_magic = 0xABCDEF42;
     while (argc && **argv == '-')
     {
         if ((*argv)[1] == 's')
@@ -158,20 +158,20 @@ int main(int argc, char **argv)
         *fill++ = '!';
     }
 
-    *(unsigned long *)&cart_start[cart_current_offset] = BYTESWAP_LONG(cart_magic);
+    *(uint32_t *)&cart_start[cart_current_offset] = BYTESWAP_LONG(cart_magic);
     if (diagnostic)
     {
-        *(unsigned long *)&cart_start[cart_current_offset] = BYTESWAP_LONG(diagnostic_magic);
+        *(uint32_t *)&cart_start[cart_current_offset] = BYTESWAP_LONG(diagnostic_magic);
     }
     cart_current_offset += 4;
 
-    unsigned long *last_ca_next = 0; // It had better be initialised when we exit the loop below
+    uint32_t *last_ca_next = 0; // It had better be initialised when we exit the loop below
     int number_of_programs_processed = 0;
 
     while (argc)
     {
-        unsigned long bss_current_file = 0;
-        unsigned long init_current_file = global_init_flag;
+        uint32_t bss_current_file = 0;
+        uint32_t init_current_file = global_init_flag;
 
         FILE *f = fopen(*argv, "rb");
         if (!f)
@@ -199,8 +199,8 @@ int main(int argc, char **argv)
             printf("Failed to read file %s - exiting", *argv);
         }
 
-        unsigned long prg_header_size = sizeof(PRG_HEADER);
-        unsigned long program_size;
+        uint32_t prg_header_size = sizeof(PRG_HEADER);
+        uint32_t program_size;
         PRG_HEADER *ph = (PRG_HEADER *)prg_temp_buf;
         // TODO: sanity checks for values here
         if (BYTESWAP_WORD(ph->PRG_magic) != 0x601a)
@@ -210,7 +210,7 @@ int main(int argc, char **argv)
 
         program_size = (BYTESWAP_LONG(ph->PRG_tsize) + BYTESWAP_LONG(ph->PRG_dsize) + 1) & 0xfffffffe; // align to 2 bytes
 
-        unsigned long entry_header_size = 0;
+        uint32_t entry_header_size = 0;
         if (!diagnostic)
         {
             entry_header_size = sizeof(CA_HEADER);
@@ -303,10 +303,10 @@ int main(int argc, char **argv)
         }
         if (!ph->ABSFLAG)
         {
-            unsigned long program_start_address = 0xfa0000 + cart_current_offset;
+            uint32_t program_start_address = 0xfa0000 + cart_current_offset;
             unsigned char *current_relocation = &cart_start[cart_current_offset];
             unsigned char *reloc = &prg_temp_buf[prg_header_size + BYTESWAP_LONG(ph->PRG_tsize) + BYTESWAP_LONG(ph->PRG_dsize) + BYTESWAP_LONG(ph->PRG_ssize)]; // TODO: Sanity check values
-            unsigned long offset = BYTESWAP_LONG(*(uint32_t *)reloc);
+            uint32_t offset = BYTESWAP_LONG(*(uint32_t *)reloc);
             reloc += 4;
             for (;;)
             {
@@ -317,7 +317,7 @@ int main(int argc, char **argv)
                 else
                 {
                     current_relocation += offset;
-                    unsigned long off = BYTESWAP_LONG(*(uint32_t *)current_relocation);
+                    uint32_t off = BYTESWAP_LONG(*(uint32_t *)current_relocation);
                     if (off < program_size)
                     {
                         // It's within the text/data section, relocate as usual
