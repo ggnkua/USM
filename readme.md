@@ -14,8 +14,9 @@ where:
 
 - *-s* is optional and allows creation of STEem Engine compatible carts
 - *-d* enables creation of diagnostic cartridges (only one program allowed, which will relocate to $fa0004)
-- *-bX* allows setting the BSS address to an address other than the default ($20000)
-- *-fY* allows setint the INIT flag. y can be
+- *-c* to switch to the classic way of adding the application to the ROM
+- *-bX* allows setting the BSS address to an address other than the default ($only when -c is active, default: $20000)
+- *-fY* allows seting the INIT flag. y can be
   - 0       Execute prior to display memory and interrupt vector initialization
   - 1       Execute just before GEMDOS is initialized
   - 3       Execute prior to boot disk
@@ -25,23 +26,24 @@ where:
 - *image_filename* is the filename of the cart image
 - *list of programs to add with optional -b and -f* is a list of ST PRG programs to add to the image, optionally postfixed by a *-b* and/or *-f* to set the parameters for the current file only
 
-More on defaults: The default value for *-b* is $20000, and the default value for *-f* is nothing. Passing *-b* and/or *-f* at the start of the parameter list will override the default values. Passing *-b* and/or *-f* after each program in the list, will override the defaults for that file only.
+More on defaults: The default value for *-b* is $20000, and the default value for *-f* is 0. Passing *-b* and/or *-f* at the start of the parameter list will override the default values. Passing *-b* and/or *-f* after each program in the list, will override the defaults for that file only.
 
-How it works (briefly)
+Two modes of operation
 ----------------------
 
-Current (and only) mode of operation is that the program gets the PRG (or PRGs), relocates TEXT and DATA sections to ROM space and BSS to RAM at a hardcoded address, and hopes for the best.
+Until the second release there was a single mode of operation (explained below).
 
-This is not the best (or robust) idea in the world, but at least it made sense when the program was conceptualised. See below for ideas for further development.
+The current default mode is to add a TOS PRG file with a small stub loader included which will copy the actual program from ROM to RAM, try to set up the system as well as it can, and then execute the program from RAM.
 
-Caveats (boy, here we go)
--------------------------
+The old mode adds the program to ROM and relocates it to run from there, with the BSS start address set in RAM by the user (or default value is used). This mode works for simple applications, but there will be many problems down the road for non properly written applications for this mode (i.e. pretty much all of them).
+
+Caveats
+-------
 
 - Only use single file PRG programs. Programs that try to load external files will not work
 - TODO: Some sanity checks are performed, but the program is far from bullet proof
-- TODO: The BSS start address has to be supplied by user (or accept the default value of $20000). Unfotunately it doesn't seem possible to do this automatically. If anyone has an idea on how to do this, happy to discuss!
-- On BSS: programs that access the BSS using PC relative code will most likely fail
-- TODO: Date and Time are still set to bogus vaules
+- TODO: Date and Time are still set to bogus values
+- On BSS, for "old" mode: programs that access the BSS using PC relative code will most likely fail
 
 Building
 --------
@@ -59,3 +61,4 @@ Thank yous
 ----------
 
 Diego Parrilla for supplying the Github actions to automatically build binaries for all platforms, and some other fixes in the code.
+tIn/Newline for the original stub loader source code.

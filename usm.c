@@ -59,6 +59,31 @@ typedef struct
 #define BYTESWAP_WORD(x) x
 #endif
 
+unsigned char prg_loader[] =
+{
+0x20 ,0x6F ,0x00 ,0x04 ,0x2E ,0x08 ,0x2F ,0x3C ,0x00 ,0x00 ,0x01 ,0x00 ,0x2F ,0x07 ,0x42 ,0x67,
+0x3F ,0x3C ,0x00 ,0x4A ,0x4E ,0x41 ,0x4F ,0xEF ,0x00 ,0x0C ,0x2F ,0x3C ,0xFF ,0xFF ,0xFF ,0xFF,
+0x3F ,0x3C ,0x00 ,0x48 ,0x4E ,0x41 ,0x5C ,0x8F ,0x2F ,0x00 ,0x3F ,0x3C ,0x00 ,0x48 ,0x4E ,0x41,
+0x5C ,0x8F ,0x20 ,0x40 ,0x41 ,0xE8 ,0x01 ,0x00 ,0x43 ,0xF9 ,0x53 ,0x54 ,0x52 ,0x54 ,0x45 ,0xF9,
+0x45 ,0x4E ,0x44 ,0x21 ,0x10 ,0xD9 ,0xB3 ,0xCA ,0x6D ,0xFA ,0x2E ,0x00 ,0x20 ,0x40 ,0x43 ,0xE8,
+0x01 ,0x00 ,0x20 ,0x88 ,0x43 ,0xE9 ,0x00 ,0x1C ,0x21 ,0x49 ,0x00 ,0x08 ,0x21 ,0x68 ,0x01 ,0x02,
+0x00 ,0x0C ,0xD3 ,0xE8 ,0x01 ,0x02 ,0x21 ,0x49 ,0x00 ,0x10 ,0x21 ,0x68 ,0x01 ,0x06 ,0x00 ,0x14,
+0xD3 ,0xE8 ,0x01 ,0x06 ,0x21 ,0x49 ,0x00 ,0x18 ,0x21 ,0x68 ,0x01 ,0x0A ,0x00 ,0x1C ,0xD3 ,0xE8,
+0x01 ,0x0A ,0xD3 ,0xE8 ,0x01 ,0x0E ,0x45 ,0xFA ,0x00 ,0xB4 ,0x21 ,0x4A ,0x00 ,0x2C ,0x45 ,0xFA,
+0x00 ,0xB7 ,0x21 ,0x4A ,0x00 ,0x80 ,0x48 ,0x7A ,0x00 ,0x0C ,0x3F ,0x3C ,0x00 ,0x26 ,0x4E ,0x4E,
+0x5C ,0x8F ,0x60 ,0x3A ,0x20 ,0x47 ,0x24 ,0x78 ,0x04 ,0xF2 ,0x28 ,0x6A ,0x00 ,0x08 ,0x24 ,0x6C,
+0x00 ,0x28 ,0x4A ,0xB8 ,0x05 ,0xA0 ,0x66 ,0x08 ,0x0C ,0x6C ,0x01 ,0x00 ,0x00 ,0x02 ,0x67 ,0x08,
+0x21 ,0x52 ,0x00 ,0x24 ,0x24 ,0x88 ,0x60 ,0x14 ,0x45 ,0xF8 ,0x60 ,0x2C ,0x30 ,0x2C ,0x00 ,0x1C,
+0xE2 ,0x48 ,0x59 ,0x40 ,0x66 ,0x04 ,0x45 ,0xEA ,0x27 ,0x10 ,0x24 ,0x88 ,0x4E ,0x75 ,0x20 ,0x47,
+0x2F ,0x08 ,0x42 ,0xA7 ,0x20 ,0x47 ,0x41 ,0xE8 ,0x01 ,0x00 ,0x22 ,0x48 ,0x61 ,0x08 ,0x91 ,0xC8,
+0x26 ,0x47 ,0x4E ,0xEB ,0x01 ,0x1C ,0x4A ,0x68 ,0x00 ,0x1A ,0x66 ,0x3E ,0x47 ,0xE9 ,0x00 ,0x1C,
+0x24 ,0x0B ,0x47 ,0xE8 ,0x00 ,0x1C ,0x24 ,0x4B ,0xD5 ,0xE8 ,0x00 ,0x02 ,0xD5 ,0xE8 ,0x00 ,0x06,
+0x26 ,0x28 ,0x00 ,0x0A ,0x22 ,0x4A ,0xD5 ,0xE8 ,0x00 ,0x0E ,0x20 ,0x1A ,0x67 ,0x1C ,0x72 ,0x00,
+0xD5 ,0xB3 ,0x08 ,0x00 ,0x12 ,0x1A ,0x67 ,0x12 ,0xB2 ,0x3C ,0x00 ,0x01 ,0x67 ,0x04 ,0xD0 ,0x81,
+0x60 ,0xEE ,0xD0 ,0xBC ,0x00 ,0x00 ,0x00 ,0xFE ,0x60 ,0xEA ,0x4E ,0x75 ,0x50 ,0x41 ,0x54 ,0x48,
+0x3D ,0x00 ,0x41 ,0x3A ,0x5C ,0x00 ,0x00 ,0x00
+};
+
 uint32_t parse_bss_parameter(char *p)
 {
     if (!p)
@@ -90,10 +115,11 @@ int main(int argc, char **argv)
 
     if (argc < 3)
     {
-        printf("Usage: %s [-s] [-bX] [-fY] image_filename <list of programs to add with optional -b and -f>\n"
+        printf("Usage: %s [-] [-s] -c [-bX] [-fY] image_filename <list of programs to add with optional -b and -f>\n"
             "pass -s to create a steem engine compatible cart image file\n"
             "pass -d to create a diagnostic cart image file\n"
-            "pass -bAABBCC to set BSS to $AABBCC (default: $20000)\n"
+            "pass -c to switch to the classic way of adding the application to the ROM"
+            "pass -bAABBCC to set BSS to $AABBCC (only when -c is active, default: $20000)\n"
             "pass -fX to set the INIT flag. X can be:\n"
             "0       Execute prior to display memory and interrupt vector initialization.\n"
             "1       Execute just before GEMDOS is initialized.\n"
@@ -103,7 +129,7 @@ int main(int argc, char **argv)
             "7       Application needs parameters.\n"
             "-b and -f can be passed at the beginning of argument list where they will\n"
             "have global effect, or after each filename where they'll only apply to the current file.\n"
-            "Default value for -b is $20000 and for -f is nothing.\n", argv[0]);
+            "Default value for -b is $20000 and for -f is 0.\n", argv[0]);
         return -1;
     }
 
@@ -112,8 +138,10 @@ int main(int argc, char **argv)
 
     uint32_t gloal_bss_hardcoded_address = 0x20000;
     uint32_t global_init_flag = 0;
+    int classic_way_of_adding_programs_to_rom = 0;
     const uint32_t diagnostic_magic = 0xfa52235f;
     const uint32_t cart_magic = 0xABCDEF42;
+
     while (argc && **argv == '-')
     {
         if ((*argv)[1] == 's')
@@ -135,6 +163,10 @@ int main(int argc, char **argv)
         else if ((*argv)[1] == 'f')
         {
             global_init_flag = parse_init_parameter(&argv[0][2]);
+        }
+        else if ((*argv)[1] == 'c')
+        {
+            classic_way_of_adding_programs_to_rom = 1;
         }
         else
         {
@@ -241,6 +273,12 @@ int main(int argc, char **argv)
                 argv++;
                 argc--;
             }
+            else if ((*argv)[1] == 'c')
+            {
+                classic_way_of_adding_programs_to_rom = 1;
+                argv++;
+                argc--;
+            }
             else
             {
                 printf("Invalid flag passed '%s' - exiting\n", *argv);
@@ -293,48 +331,72 @@ int main(int argc, char **argv)
             cart_current_offset += sizeof(CA_HEADER);
         }
 
-        memcpy(&cart_start[cart_current_offset], prg_temp_buf + prg_header_size, program_size);
+        if (classic_way_of_adding_programs_to_rom)
+        {
+            // Copy program TEXT and DATA sections without header, relocate TEXT and DATA sections
+            // to map to ROM space, relocate BSS to hardcoded RAM area (defined by -f)
+            memcpy(&cart_start[cart_current_offset], prg_temp_buf + prg_header_size, program_size);
 
-        // Relocate program
-        if (!bss_current_file)
-        {
-            // use global default if bss address not specified for this program
-            bss_current_file = gloal_bss_hardcoded_address;
-        }
-        if (!ph->ABSFLAG)
-        {
-            uint32_t program_start_address = 0xfa0000 + cart_current_offset;
-            unsigned char *current_relocation = &cart_start[cart_current_offset];
-            unsigned char *reloc = &prg_temp_buf[prg_header_size + BYTESWAP_LONG(ph->PRG_tsize) + BYTESWAP_LONG(ph->PRG_dsize) + BYTESWAP_LONG(ph->PRG_ssize)]; // TODO: Sanity check values
-            uint32_t offset = BYTESWAP_LONG(*(uint32_t *)reloc);
-            reloc += 4;
-            for (;;)
+            // Relocate program
+            if (!bss_current_file)
             {
-                if (offset == 1)
+                // use global default if bss address not specified for this program
+                bss_current_file = gloal_bss_hardcoded_address;
+            }
+            if (!ph->ABSFLAG)
+            {
+            uint32_t program_start_address = 0xfa0000 + cart_current_offset;
+                unsigned char *current_relocation = &cart_start[cart_current_offset];
+                unsigned char *reloc = &prg_temp_buf[prg_header_size + BYTESWAP_LONG(ph->PRG_tsize) + BYTESWAP_LONG(ph->PRG_dsize) + BYTESWAP_LONG(ph->PRG_ssize)]; // TODO: Sanity check values
+            uint32_t offset = BYTESWAP_LONG(*(uint32_t *)reloc);
+                reloc += 4;
+                for (;;)
                 {
-                    current_relocation += 254;
-                }
-                else
-                {
-                    current_relocation += offset;
-                    uint32_t off = BYTESWAP_LONG(*(uint32_t *)current_relocation);
-                    if (off < program_size)
+                    if (offset == 1)
                     {
-                        // It's within the text/data section, relocate as usual
-                        *(uint32_t *)current_relocation = BYTESWAP_LONG(program_start_address + off);
+                        current_relocation += 254;
                     }
                     else
                     {
-                        // It's BSS area, point it to the hardcoded BSS address
-                        *(uint32_t *)current_relocation = BYTESWAP_LONG(off - program_size + bss_current_file);
+                        current_relocation += offset;
+                    uint32_t off = BYTESWAP_LONG(*(uint32_t *)current_relocation);
+                        if (off < program_size)
+                        {
+                            // It's within the text/data section, relocate as usual
+                            *(uint32_t *)current_relocation = BYTESWAP_LONG(program_start_address + off);
+                        }
+                        else
+                        {
+                            // It's BSS area, point it to the hardcoded BSS address
+                            *(uint32_t *)current_relocation = BYTESWAP_LONG(off - program_size + bss_current_file);
+                        }
                     }
+                    if (!*reloc) break;
+                    offset = *reloc++;
                 }
-                if (!*reloc) break;
-                offset = *reloc++;
             }
         }
+        else
+        {
+            // Copy the stub loader contained in "prg_loader", fill in start and end addresses (depending
+            // on program size) and then copy the program in verbatim (including header). The stub will
+            // copy the program to RAM, mshrink RAM (programs in cart are pexec'd by the system,
+            // set Basepage/TPA, and finally reloacte the program in-place). Look at prg_loader.s and
+            // prg_loader_build.bat for more information on this.
+            memcpy(&cart_start[cart_current_offset], prg_loader, sizeof(prg_loader));
 
-        cart_current_offset += program_size;
+            // TODO un-hardcode this
+            uint32_t *payload_start = (uint32_t *)&cart_start[cart_current_offset + 0x3a];
+            uint32_t *payload_end = (uint32_t *)&cart_start[cart_current_offset + 0x40];
+            *payload_start = BYTESWAP_LONG(0xfa0000 + cart_current_offset + sizeof(prg_loader));
+            *payload_end = BYTESWAP_LONG(0xfa0000 + cart_current_offset + sizeof(prg_loader) + file_size);
+
+            cart_current_offset += sizeof(prg_loader);
+
+            memcpy(&cart_start[cart_current_offset], prg_temp_buf, file_size);
+        }
+
+        cart_current_offset += file_size;
         number_of_programs_processed++;
 
         if (diagnostic && argc)
