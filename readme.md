@@ -50,12 +50,6 @@ Building
 
 Use the provided scripts. Or Visual Studio.
 
-What can be done in the future to improve things
-------------------------------------------------
-
-1. Add a small stub in front of each program to malloc enough BSS so if the running program is doing mallocs, it won't overwrite the BSS. Kind of tricky given the many modes of *-fY* and hardcoded BSS address
-1. Instead of relocating the program to ROM space, copy it along with relocation information to RAM and *pexec 3* it
-1. Keep the whole program in ROM space with relocation information, and at runtime a small stab will relocate it fully to RAM and run it. Again, it could malloc some RAM for this
 
 Thank yous
 ----------
