@@ -12,7 +12,7 @@ char prg_temp_buf[1024 * 128];
 #if defined (_WIN32)
 #pragma pack(2)
 #endif
-#if defined(__linux__) || defined(__CYGWIN__) || defined(__MINGW32__) || defined(__APPLE__)
+#if defined(__linux__) || defined(__CYGWIN__) || defined(__MINGW32__) || defined(__APPLE__) || defined (__COSMOCC__)
 #pragma pack(push,2)
 #endif
 
@@ -47,11 +47,11 @@ typedef struct
     uint32_t    PRGFLAGS;   // This LONG contains flags which define certain process characteristics (as defined below).
     uint8_t     ABSFLAG;    // This WORD flag should be non-zero to indicate that the program has no fixups or 0 to indicate it does.Since some versions of TOS handle files with this value being non-zero incorrectly, it is better to represent a program having no fixups with 0 here and placing a 0 longword as the fixup offset.
 } PRG_HEADER;
-#if defined(__linux__) || defined(__CYGWIN__) || defined(__MINGW32__) || defined(__APPLE__)
+#if defined(__linux__) || defined(__CYGWIN__) || defined(__MINGW32__) || defined(__APPLE__) || defined (__COSMOCC__)
 #pragma pack(pop)
 #endif
 
-#if defined(__linux__) || defined(__CYGWIN__) || defined(__MINGW32__) || defined(__APPLE__) || defined (_WIN32)
+#if defined(__linux__) || defined(__CYGWIN__) || defined(__MINGW32__) || defined(__APPLE__) || defined (_WIN32) || defined (__COSMOCC__)
 #define BYTESWAP_LONG(x) (((x&0xff000000)>>24)|((x&0x00ff0000)>>8)|((x&0x0000ff00)<<8)|((x&0x000000ff)<<24))
 #define BYTESWAP_WORD(x) (((x&0xff00)>>8)|((x&0x00ff)<<8))
 #else
@@ -136,7 +136,7 @@ int main(int argc, char **argv)
     argv++;
     argc--;
 
-    uint32_t gloal_bss_hardcoded_address = 0x20000;
+    uint32_t global_bss_hardcoded_address = 0x20000;
     uint32_t global_init_flag = 0;
     int classic_way_of_adding_programs_to_rom = 0;
     const uint32_t diagnostic_magic = 0xfa52235f;
@@ -158,7 +158,7 @@ int main(int argc, char **argv)
         }
         else if ((*argv)[1] == 'b')
         {
-            gloal_bss_hardcoded_address = parse_bss_parameter(&argv[0][2]);
+            global_bss_hardcoded_address = parse_bss_parameter(&argv[0][2]);
         }
         else if ((*argv)[1] == 'f')
         {
@@ -341,7 +341,7 @@ int main(int argc, char **argv)
             if (!bss_current_file)
             {
                 // use global default if bss address not specified for this program
-                bss_current_file = gloal_bss_hardcoded_address;
+                bss_current_file = global_bss_hardcoded_address;
             }
             if (!ph->ABSFLAG)
             {
