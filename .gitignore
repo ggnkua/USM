@@ -2,3 +2,16 @@
 /x64/*
 
 /.history/*
+
+# Compiled binary.
+/usm
+
+# Generated test cart artifacts.
+/build/
+
+# Local test input binaries (PRG/TOS) — redistribution rights vary.
+/tests/binaries/*
+
+# Reference carts used for format analysis only; redistribution rights vary.
+/*.STC
+/*.stc
